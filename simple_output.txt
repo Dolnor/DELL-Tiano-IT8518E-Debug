@@ -1,0 +1,87 @@
+-- dell_ec.pl usage:
+'dell_ec regs' 			dump all ec registers (reduce font in terminal)
+'dell_ec temps' 		display temperatures from sensors
+'dell_ec gettouch' 		show touchpad status (enabled|disabled)
+'dell_ec getfanstat' 		determine level, mode and speed of system fan
+'dell_ec getbatstat' 		display battery information and health
+'dell_ec getkbstat' 		show keyboard backlight level and timeout
+'dell_ec getacstat' 		determine ac adapter wattage & current power source
+'dell_ec ?= <reg>' 		read register value
+'dell_ec := <reg> <val>' 	write register value
+
+** temps
+
+------------ Abbreviations ------------
+
+OTC - Optical Thermocouple
+HSA - Heatsink Assembly
+DTS - Digital Thermal Sensor
+THR - Thermistor
+
+----------- Sensor Readings -----------
+
+CPU Package  	[OTC]		 45 C
+Mainboard 	[THR]		 43 C
+CPU Die 	[DTS]		 51 C
+PCH Die 	[DTS]		 47 C
+Memory Modules 	[THR]		 44 C
+
+** gettouch
+touchpad enabled
+
+** getfanstat
+fan level 1 	[3000-3900rpm]
+fan mode auto
+fan speed is 3599rpm
+
+** getbatstat
+
+---------------- OEM Information ------------
+
+Designed Battery Capacity	 4400	mWh
+Designed Battery Voltage	 11100	mV
+Battery Manufacturer		 LG Chem
+Battery Model Number 		 Dell-10788
+Battery Chemistry		 Li-ION
+
+-------------------- Status -----------------
+
+Battery Charge			 100%
+Battery Capacity		 3368	mWh
+Battery Voltage 		 12485	mV
+Last Charge Capacity		 3368	mWh
+
+-------------------- Health -----------------
+
+Battery Cycle Count		 177
+Battery Health State		 76%
+
+-------------------- Details -----------------
+
+Battery is Installed
+Battery is Fully Charged
+Battery is Capable of Charging
+
+** getkbstat
+keyboard backlight level:	 dim
+keyboard backlight timeout:	15min
+
+** getacstat
+running on 65W ac adapter
+
+An example of actual debugging:
+
+** ?= 0x60
+Read  REG[0x60] == 0x40
+
+** := 0x60 0x00 <-- set fan to manual mode
+Read  REG[0x60] == 0x40
+Write REG[0x60] := 0x00
+Read  REG[0x60] == 0x00
+
+** getfanstat
+fan level 0 	[0rpm, disabled]
+fan mode manual
+fan speed is 3237rpm
+
+
