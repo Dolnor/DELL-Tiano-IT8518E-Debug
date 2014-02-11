@@ -124,10 +124,10 @@ sub read_temps
 {
 	initialize_ioports();
 
-	print "\n------------ Abbreviations ------------\n\n";
+	print "------------ Abbreviations ------------\n";
 	print "OTC - Optical Thermocouple\nHSA - Heatsink Assembly\n";
 	print "DTS - Digital Thermal Sensor\nTHR - Thermistor\n";
-	print "\n----------- Sensor Readings -----------\n\n";
+	print "----------- Sensor Readings -----------\n";
 	my @s = ("CPU Package  \t[OTC]","D-GPU Die \t[DTS]","Chipset \t[HSA]",
 		 "CPU Heatsink \t[HSA]","Mainboard \t[THR]","CPU Die \t[DTS]", 
 	         "PCH Die \t[DTS]","Memory Modules \t[THR]");
@@ -145,29 +145,32 @@ sub read_fan_status
 {
 	initialize_ioports();
 	# read level of rpm
-	if (read_ec(0x63) == 0x01) {
-		print "fan level 1 \t[3000-3900rpm]\n";
-	} elsif (read_ec(0x63) == 0x02) {
-		print "fan level 2 \t[4200-4500rpm]\n";
-	} elsif (read_ec(0x63) == 0x03) {
-		print "fan level 3 \t[4500-5300rpm]\n";
-	} else {
-		print "fan level 0 \t[0rpm, disabled]\n"; 
+	my $flvl = read_ec(0x63);
+	print "Fan Auto Level ";
+	if ($flvl == 0x00) {
+		print "#0 \tDisabled\n"; 
+	} elsif ($flvl  == 0x01) {
+		print "#1 \t3000-3900rpm\n"; 
+	} elsif ($flvl == 0x02) {
+		print "#2 \t4200-4500rpm\n";
+	} elsif ($flvl  == 0x03) {
+		print "#3 \t4500-5300rpm\n";
+	} elsif ($flvl  == 0xFF) {
+		print "#X \tOverridden\n";
 	}
 	# read opeation mode
+	print "Fan Operation Mode";
 	if (read_ec(0x60) == 0x40) {
-		print "fan mode auto\n";
+		print "\tAutomatic\n";
 	} elsif (read_ec(0x60) == 0x00) {
-		print "fan mode manual\n";
+		print "\tManual\n";
 	} 
 	# read actual fan speed
 	my $fs = read_ec(0x68) <<8 | read_ec(0x69);
 	if ($fs != 0x00) {
-	 	printf ("fan speed is %drpm\n",$fs);
+	 	printf ("Fan Rotation Speed\t%drpm\n",$fs);
 	}
-	else {
-		print "fan not running\n";
-	}
+
 	close_ioports();
 }
 
@@ -175,88 +178,91 @@ sub read_battery_info
 {
 	initialize_ioports();
 	
-	print "\n---------------- OEM Information ------------\n\n";
-	my $dcap = read_ec(0xb1) <<8 | read_ec(0xb0);
-	my $dvol = read_ec(0xb3) <<8 | read_ec(0xb2);	
-	printf ("Designed Battery Capacity\t %d\tmWh\n", $dcap);
-	printf ("Designed Battery Voltage\t %d\tmV\n",  $dvol);	
-
-	my $boem = read_ec(0xc4);
-	SWITCH: {
-	    	print "Battery Manufacturer\t\t ";
-	    	$boem == 0x09 && do { print "LG Chem\n";  last SWITCH;};
-	    	$boem == 0x08 && do { print "Motorola\n"; last SWITCH;};
-	    	$boem == 0x07 && do { print "Simplo\n";   last SWITCH;};
-	    	$boem == 0x06 && do { print "Samsung SDI\n";last SWITCH;};
-	    	$boem == 0x05 || $boem == 0x02 && do { print "Sony\n";last SWITCH;};
-	    	$boem == 0x04 && do { print "Panasonic\n";last SWITCH;};
-	    	$boem == 0x03 && do { print "Sanyo\n";    last SWITCH;};
-	    	$boem == 0x01 && do { print "Dell\n";     last SWITCH;};
-	    	$boem == 0x00 && do { print "Unknown\n";  last SWITCH;};
-	}
-	my $bser = read_ec(0xb9) <<8 | read_ec(0xb8);	
-	my $bmod = read_ec(0xc5);
-	print "Battery Model Number \t\t ";
-	if ($bmod == 0xFF) {
-		printf ("Dell-%d\n",$bser);
-	}
-	else {
-		printf ("Unknown-%d\n",$bser);
-	}
-	my $btyp = read_ec(0xc6);
-	SWITCH: {
-	    	print "Battery Chemistry\t\t ";
-	    	$btyp == 0x08 && do { print "Li-P\n";    last SWITCH;};
-	    	$btyp == 0x07 && do { print "Zn-Air\n";  last SWITCH;};
-	    	$btyp == 0x06 && do { print "RAM\n";     last SWITCH;};
-	    	$btyp == 0x05 && do { print "Ni-Zn\n";   last SWITCH;};
-	    	$btyp == 0x04 && do { print "Ni-MH\n";   last SWITCH;};
-	    	$btyp == 0x03 && do { print "NI-Cd\n";   last SWITCH;};
-	    	$btyp == 0x02 && do { print "Li-ION\n";	 last SWITCH;};
-	    	$btyp == 0x01 && do { print "Pb-Ac\n";   last SWITCH;};
-	    	$btyp == 0x00 && do { print "Unknown\n"; last SWITCH;};
-	}
-
-	my $bcap = read_ec(0xa1) <<8 | read_ec(0xa0);
-	my $bvol = read_ec(0xa5) <<8 | read_ec(0xa4);
-	my $bcur = read_ec(0xa7) <<8 | read_ec(0xa6);
-	my $bper = read_ec(0xac);
-	my $blfc = read_ec(0xaf) <<8 | read_ec(0xae);
-
-	print "\n-------------------- Status -----------------\n\n";
-	printf ("Battery Charge\t\t\t %d%%\n", $bper);
-	printf ("Battery Capacity\t\t %d\tmWh\n", $bcap);
-	printf ("Battery Voltage \t\t %d\tmV\n", $bvol);
-	if ($bcur != 0) { printf ("Battery Current\t\t %d\tmW\n", $bcur);}
-	printf ("Last Charge Capacity\t\t %d\tmWh\n", $blfc);
-	 
-	print "\n-------------------- Health -----------------\n\n";
-	
-	my $ccnt = ($dcap - $blfc) / 5.8;
-	my $bhlt = 0x64 * $blfc / $dcap;
-	printf ("Battery Cycle Count\t\t %d\n", $ccnt);
-	printf ("Battery Health State\t\t %d%%\n", $bhlt);
-
-	print "\n-------------------- Details -----------------\n\n";
+	print "-------------------- Details -----------------\n";
 	my $bd1 = read_ec(0xcb);
 	my $bd2 = read_ec(0xcc);
 	if ($bd1 & 0x01) {
 		print "Battery is Installed\n";
 		if ($bd1 & 0x32) {
-			print "Battery Charge Low\n";
-		}
+			print "\t - Charge Low\n";
+		} 
 		if ($bd1 & 0x16) {
-			print "Battery Charge Critical\n";
+			print "\t - Charge Critical\n";
 		}
 		if ($bd2 & 0x01) {
-			print "Battery is Fully Charged\n";
+			print "\t - Fully Charged\n";
 		}
 		if ($bd1 & 0x64) {
-			print "Battery is Discharging\n";
+			print "\t - Discharging\n";
 		}
 		if ($bd2 & 0x32) {
-			print "Battery is Capable of Charging\n";
+			print "\t - Capable of Charging\n";
+		} else {
+			print "\t - Not Capable of Charging\n";
 		}
+
+		print "---------------- OEM Information ------------\n";
+		my $dcap = read_ec(0xb1) <<8 | read_ec(0xb0);
+		my $dvol = read_ec(0xb3) <<8 | read_ec(0xb2);	
+		printf ("Designed Battery Capacity\t %d\tmWh\n", $dcap);
+		printf ("Designed Battery Voltage\t %d\tmV\n",  $dvol);	
+
+		my $boem = read_ec(0xc4);
+		SWITCH: {
+	    		print "Battery Manufacturer\t\t ";
+	    		$boem == 0x09 && do { print "LG Chem\n";  last SWITCH;};
+	    		$boem == 0x08 && do { print "Motorola\n"; last SWITCH;};
+	    		$boem == 0x07 && do { print "Simplo\n";   last SWITCH;};
+	    		$boem == 0x06 && do { print "Samsung SDI\n";last SWITCH;};
+	    		$boem == 0x05 || $boem == 0x02 && do { print "Sony\n";last SWITCH;};
+	    		$boem == 0x04 && do { print "Panasonic\n";last SWITCH;};
+	    		$boem == 0x03 && do { print "Sanyo\n";    last SWITCH;};
+	    		$boem == 0x01 && do { print "Dell\n";     last SWITCH;};
+	    		$boem == 0x00 && do { print "Unknown\n";  last SWITCH;};
+		}
+		my $bser = read_ec(0xb9) <<8 | read_ec(0xb8);	
+		my $bmod = read_ec(0xc5);
+		print "Battery Model Number \t\t ";
+		if ($bmod == 0xFF) {
+			printf ("Dell-%d\n",$bser);
+		}
+		else {
+			printf ("Unknown-%d\n",$bser);
+		}
+		my $btyp = read_ec(0xc6);
+		SWITCH: {
+	    		print "Battery Chemistry\t\t ";
+	    		$btyp == 0x08 && do { print "Li-P\n";    last SWITCH;};
+	    		$btyp == 0x07 && do { print "Zn-Air\n";  last SWITCH;};
+	    		$btyp == 0x06 && do { print "RAM\n";     last SWITCH;};
+	    		$btyp == 0x05 && do { print "Ni-Zn\n";   last SWITCH;};
+	    		$btyp == 0x04 && do { print "Ni-MH\n";   last SWITCH;};
+	    		$btyp == 0x03 && do { print "NI-Cd\n";   last SWITCH;};
+	    		$btyp == 0x02 && do { print "Li-ION\n";	 last SWITCH;};
+	    		$btyp == 0x01 && do { print "Pb-Ac\n";   last SWITCH;};
+	    		$btyp == 0x00 && do { print "Unknown\n"; last SWITCH;};
+		}
+
+		my $bcap = read_ec(0xa1) <<8 | read_ec(0xa0);
+		my $bvol = read_ec(0xa5) <<8 | read_ec(0xa4);
+		my $bcur = read_ec(0xa7) <<8 | read_ec(0xa6);
+		my $bper = read_ec(0xac);
+		my $blfc = read_ec(0xaf) <<8 | read_ec(0xae);
+
+		print "-------------------- Status -----------------\n";
+		printf ("Battery Charge\t\t\t %d%%\n", $bper);
+		printf ("Battery Capacity\t\t %d\tmWh\n", $bcap);
+		printf ("Battery Voltage \t\t %d\tmV\n", $bvol);
+		if ($bcur != 0) { printf ("Battery Current Flow\t\t %d\tmW\n", $bcur);}
+		printf ("Last Charge Capacity\t\t %d\tmWh\n", $blfc);
+
+		print "-------------------- Health -----------------\n";
+	
+		my $ccnt = ($dcap - $blfc) / 5.8;
+		my $bhlt = 0x64 * $blfc / $dcap;
+		printf ("Battery Cycle Count\t\t %d\n", $ccnt);
+		printf ("Battery Health State\t\t %d%%\n", $bhlt);
+
 	}
 	else {
 		print "Battery not Installed\n";
@@ -273,13 +279,13 @@ sub print_regs
 
 	my $i = 0;
 	my $t = 0;
-	print "\n  \t00\t01\t02\t03\t04\t05\t06\t07\t|\t08\t09\t0A\t0B\t0C\t0D\t0E\t0F\n";
-	print "  \t__\t__\t__\t__\t__\t__\t__\t__\t|\t__\t__\t__\t__\t__\t__\t__\t__\n";
+	print "\n  \t 00\t 01\t 02\t 03\t 04\t 05\t 06\t 07\t|\t 08\t 09\t 0A\t 0B\t 0C\t 0D\t 0E\t 0F\n";
+	print "  \t----\t----\t----\t----\t----\t----\t----\t----\t|\t----\t----\t----\t----\t----\t----\t----\t----\n";
 	print "00 |\t";
 	for ($i = 0; $i < 256; $i++)
 	{
 		$t = read_ec($i);
-		print $t;
+		printf ("0x%02x",$t);
 		print "\t";
 		if ((($i + 1) % 8) == 0){
 			if ((($i + 1) % 16) == 0) {
@@ -306,6 +312,9 @@ if (!$ARGV[0]){
 	print "\'dell_ec getacstat\' \t\tdetermine ac adapter wattage & current power source\n";
 	print "\'dell_ec ?= <reg>\' \t\tread register value\n";
 	print "\'dell_ec := <reg> <val>\' \twrite register value\n";
+	print “\’dell_ec +f <reg> <val>\' \tOR register value with val (to set flags)\n";
+	print “\’dell_ec -f <reg> <val>\' \tAND register value with ~val (to clear flags)\n";
+
 } elsif ($ARGV[0] eq "regs") {
 	print_regs();
 } elsif ($ARGV[0] eq "temps") {
@@ -325,12 +334,32 @@ if (!$ARGV[0]){
         write_ec( $r, $f);
 	printf("Read  REG[0x%02x] == 0x%02x\n", $r, read_ec($r));
 	close_ioports();
+} elsif ($ARGV[0] eq "+f") {
+	initialize_ioports();
+	my $r = hex($ARGV[1]);
+	my $f = hex($ARGV[2]);
+	my $val = read_ec($r);
+	printf(“Read REG[0x%02x] == 0x%02x\n", $r, $val);
+	printf(“OR   REG[0x%02x] := 0x%02x\n", $r, $val | $f);
+        write_ec( $r, $val | $f);
+	printf(“Read REG[0x%02x] == 0x%02x\n", $r, read_ec($r));
+	close_ioports();
+} elsif ($ARGV[0] eq "-f") {
+	initialize_ioports();
+	my $r = hex($ARGV[1]);
+	my $f = hex($ARGV[2]);
+	my $val = read_ec($r);
+	printf(“Read REG[0x%02x] == 0x%02x\n", $r, $val);
+	printf(“AND  REG[0x%02x] := 0x%02x\n", $r, $val & ~$f);
+        write_ec( $r, $val & ~$f);
+	printf(“Read REG[0x%02x] == 0x%02x\n", $r, read_ec($r));
+	close_ioports();
 } elsif ($ARGV[0] eq "gettouch") {
 	initialize_ioports();
 	if (read_ec(0x45) == 0x20) {
-		print "touchpad enabled\n";
+		print "Touchpad Enabled\n";
 	} else {
-		print "touchpad disabled\n"; }
+		print "Touchpad Disabled\n"; }
 	close_ioports();
 } elsif ($ARGV[0] eq "getfanstat") {
 	read_fan_status
@@ -338,9 +367,9 @@ if (!$ARGV[0]){
 	initialize_ioports();
 	if (read_ec(0x40) & 0x01) {
 		my $w = read_ec(0x80);		
-		printf ("running on %dW ac adapter\n",$w);
+		printf ("Running on %dW AC Adapter\n",$w);
 	} else {
-		print "running on battery power\n";
+		print "Running on Battery Power, \'getbatstat\' for Details\n";
 	} 
 	close_ioports();
 } elsif ($ARGV[0] eq "getkbstat") {
@@ -348,20 +377,20 @@ if (!$ARGV[0]){
 	my $bkl = read_ec(0x8C);
 	my $bkt = read_ec(0x8B);
 	SWITCH: {
-	    	print "keyboard backlight level:\t ";
-	    	$bkl == 0x01 && do { print "dim\n";   last SWITCH;};
-	    	$bkl == 0x02 && do { print "bright\n";last SWITCH;};
-	    	$bkl == 0x00 && do { print "off\n";   last SWITCH;};
+	    	print "Keyboard Backlight Level\t ";
+	    	$bkl == 0x01 && do { print "Dim\n";   last SWITCH;};
+	    	$bkl == 0x02 && do { print "Bright\n";last SWITCH;};
+	    	$bkl == 0x00 && do { print "Disabled\n";   last SWITCH;};
 	}
 	SWITCH: {
-	    	print "keyboard backlight timeout:\t";
-	    	$bkt == 0x01 && do { print "5sec\n"; last SWITCH;};
-	    	$bkt == 0x03 && do { print "15sec\n";last SWITCH;};
-	    	$bkt == 0x06 && do { print "30sec\n";last SWITCH;};
-	    	$bkt == 0x0C && do { print "1min\n"; last SWITCH;};
-	    	$bkt == 0x3C && do { print "5min\n"; last SWITCH;};
-	    	$bkt == 0xB4 && do { print "15min\n";last SWITCH;};
- 	    	$bkt == 0x00 && do { print "never\n";last SWITCH;};
+	    	print "Keyboard Backlight Timeout\t";
+	    	$bkt == 0x01 && do { print " 5 sec\n"; last SWITCH;};
+	    	$bkt == 0x03 && do { print " 15 sec\n";last SWITCH;};
+	    	$bkt == 0x06 && do { print " 30 sec\n";last SWITCH;};
+	    	$bkt == 0x0C && do { print " 1 min\n"; last SWITCH;};
+	    	$bkt == 0x3C && do { print " 5 min\n"; last SWITCH;};
+	    	$bkt == 0xB4 && do { print " 15 min\n";last SWITCH;};
+ 	    	$bkt == 0x00 && do { print " Never\n";last SWITCH;};
 	}
 	close_ioports();
 } elsif ($ARGV[0] eq "getbatstat") {
