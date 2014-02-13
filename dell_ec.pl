@@ -312,8 +312,8 @@ if (!$ARGV[0]){
 	print "\'dell_ec getacstat\' \t\tdetermine ac adapter wattage & current power source\n";
 	print "\'dell_ec ?= <reg>\' \t\tread register value\n";
 	print "\'dell_ec := <reg> <val>\' \twrite register value\n";
-	print “\’dell_ec +f <reg> <val>\' \tOR register value with val (to set flags)\n";
-	print “\’dell_ec -f <reg> <val>\' \tAND register value with ~val (to clear flags)\n";
+	print "\’dell_ec +f <reg> <val>\' \tOR register value with val (to set flags)\n";
+	print "\’dell_ec -f <reg> <val>\' \tAND register value with ~val (to clear flags)\n";
 
 } elsif ($ARGV[0] eq "regs") {
 	print_regs();
@@ -339,20 +339,20 @@ if (!$ARGV[0]){
 	my $r = hex($ARGV[1]);
 	my $f = hex($ARGV[2]);
 	my $val = read_ec($r);
-	printf(“Read REG[0x%02x] == 0x%02x\n", $r, $val);
-	printf(“OR   REG[0x%02x] := 0x%02x\n", $r, $val | $f);
+	printf("Read REG[0x%02x] == 0x%02x\n", $r, $val);
+	printf("OR   REG[0x%02x] := 0x%02x\n", $r, $val | $f);
         write_ec( $r, $val | $f);
-	printf(“Read REG[0x%02x] == 0x%02x\n", $r, read_ec($r));
+	printf("Read REG[0x%02x] == 0x%02x\n", $r, read_ec($r));
 	close_ioports();
 } elsif ($ARGV[0] eq "-f") {
 	initialize_ioports();
 	my $r = hex($ARGV[1]);
 	my $f = hex($ARGV[2]);
 	my $val = read_ec($r);
-	printf(“Read REG[0x%02x] == 0x%02x\n", $r, $val);
-	printf(“AND  REG[0x%02x] := 0x%02x\n", $r, $val & ~$f);
+	printf("Read REG[0x%02x] == 0x%02x\n", $r, $val);
+	printf("AND  REG[0x%02x] := 0x%02x\n", $r, $val & ~$f);
         write_ec( $r, $val & ~$f);
-	printf(“Read REG[0x%02x] == 0x%02x\n", $r, read_ec($r));
+	printf("Read REG[0x%02x] == 0x%02x\n", $r, read_ec($r));
 	close_ioports();
 } elsif ($ARGV[0] eq "gettouch") {
 	initialize_ioports();
@@ -376,6 +376,7 @@ if (!$ARGV[0]){
 	initialize_ioports();
 	my $bkl = read_ec(0x8C);
 	my $bkt = read_ec(0x8B);
+    print "------------------- Backlight -----------------\n";
 	SWITCH: {
 	    	print "Keyboard Backlight Level\t ";
 	    	$bkl == 0x01 && do { print "Dim\n";   last SWITCH;};
@@ -392,6 +393,17 @@ if (!$ARGV[0]){
 	    	$bkt == 0xB4 && do { print " 15 min\n";last SWITCH;};
  	    	$bkt == 0x00 && do { print " Never\n";last SWITCH;};
 	}
+    
+    my $leds = read_ec(0x70);
+	print "--------------------- LEDs --------------------\n";
+	
+	if ($leds != 0) {
+		if ($leds & 0x02) {print "Keyboard Num Lock LED \t\t Enabled\n";}
+		if ($leds & 0x04) {print "Keyboard Caps Lock LED \t\t Enabled\n";}
+		if ($leds & 0x01) {print "Keyboard Scroll Lock LED \t\t Enabled\n";}
+	}
+	else {print "All Keyboard LEDs \t\t Disabled\n";}
+    
 	close_ioports();
 } elsif ($ARGV[0] eq "getbatstat") {
 	read_battery_info();
